@@ -1,0 +1,31 @@
+# Environment
+.env
+
+# Data files
+data/
+*.jsonl
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Claude Code
+CLAUDE.md
+PROJECT_PLAN.md
+.claude/
