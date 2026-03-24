@@ -1,6 +1,7 @@
 """TracingMiddleware — manages the full trace lifecycle for every /query request."""
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 
@@ -10,6 +11,7 @@ from starlette.responses import Response
 
 from llmetrics.core.config import settings
 from llmetrics.core.models import TraceRecord
+from llmetrics.evaluation.base import merge_eval
 from llmetrics.metrics.cost import estimate_cost
 from llmetrics.tracing.context import finish_trace, start_trace
 
@@ -84,8 +86,32 @@ class TracingMiddleware(BaseHTTPMiddleware):
                     error=getattr(request.state, "error", None),
                 )
 
+                # Run rule-based evaluators synchronously (isolated — never block storage)
+                sync_evaluators = getattr(request.app.state, "sync_evaluators", [])
+                if sync_evaluators:
+                    eval_results = []
+                    for ev in sync_evaluators:
+                        try:
+                            eval_results.append(ev.evaluate(record))
+                        except Exception:
+                            pass
+                    if eval_results:
+                        record = record.model_copy(
+                            update={"evaluation": merge_eval(*eval_results)}
+                        )
+
                 try:
                     request.app.state.storage.write(record)
                     request.app.state.latency_tracker.record(total_latency)
                 except Exception:
                     pass  # Never let observability break the response
+
+                # Fire LLM judge async after storage write (fire-and-forget)
+                llm_judge = getattr(request.app.state, "llm_judge", None)
+                if llm_judge is not None:
+                    try:
+                        asyncio.create_task(
+                            llm_judge.evaluate_async(record, request.app.state.storage)
+                        )
+                    except Exception:
+                        pass

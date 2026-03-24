@@ -30,6 +30,8 @@ def create_app(
     reranker: Any = None,
     prompt_builder: Any = None,
     llm_client: Any = None,
+    sync_evaluators: list[Any] | None = None,
+    llm_judge: Any = None,
 ) -> FastAPI:
     """
     Build and return the FastAPI app.
@@ -71,6 +73,24 @@ def create_app(
             from llmetrics.pipeline.llm_client import LLMClient
 
             app.state.llm_client = LLMClient()
+
+        # ------ Evaluators ------
+        if sync_evaluators is not None:
+            app.state.sync_evaluators = sync_evaluators
+        else:
+            from llmetrics.evaluation.context_relevance import ContextRelevanceEvaluator
+            from llmetrics.evaluation.faithfulness import FaithfulnessEvaluator
+
+            app.state.sync_evaluators = [FaithfulnessEvaluator(), ContextRelevanceEvaluator()]
+
+        if llm_judge is not None:
+            app.state.llm_judge = llm_judge
+        elif settings.enable_llm_judge:
+            from llmetrics.evaluation.llm_judge import LLMJudgeEvaluator
+
+            app.state.llm_judge = LLMJudgeEvaluator()
+        else:
+            app.state.llm_judge = None
 
         yield
 
