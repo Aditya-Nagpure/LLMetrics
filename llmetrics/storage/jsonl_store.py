@@ -28,21 +28,35 @@ class JsonlStore(StorageBackend):
         if not self._path.exists():
             return []
         try:
-            records: list[TraceRecord] = []
+            # Use an ordered dict so later writes (e.g. LLM judge updates) overwrite
+            # earlier entries for the same trace_id, preserving insertion order.
+            seen: dict[str, TraceRecord] = {}
             with self._path.open("r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
-                        records.append(TraceRecord.model_validate_json(line))
-            return records
+                        record = TraceRecord.model_validate_json(line)
+                        seen[record.trace_id] = record
+            return list(seen.values())
         except (OSError, json.JSONDecodeError) as e:
             raise StorageError(f"Failed to read traces: {e}") from e
 
     def read_by_id(self, trace_id: str) -> TraceRecord | None:
-        for record in self.read_all():
-            if record.trace_id == trace_id:
-                return record
-        return None
+        # Scan all lines and return the last match (latest update wins).
+        result = None
+        if not self._path.exists():
+            return None
+        try:
+            with self._path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        record = TraceRecord.model_validate_json(line)
+                        if record.trace_id == trace_id:
+                            result = record
+        except (OSError, json.JSONDecodeError) as e:
+            raise StorageError(f"Failed to read trace {trace_id}: {e}") from e
+        return result
 
     def close(self) -> None:
         pass  # No persistent handle to close

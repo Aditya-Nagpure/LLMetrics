@@ -12,17 +12,28 @@ class CrossEncoderReranker:
     def __init__(self, model_name: str | None = None, top_n: int | None = None) -> None:
         self._model_name = model_name or settings.reranker_model
         self._top_n = top_n if top_n is not None else settings.reranker_top_n
+        self._model = None
         try:
             from sentence_transformers import CrossEncoder
 
             self._model = CrossEncoder(self._model_name)
         except Exception as exc:
-            raise PipelineError(f"CrossEncoderReranker init failed: {exc}") from exc
+            # torch >= 2.4 is required but not available on Intel Macs.
+            # Fall back to returning docs in original order (no reranking).
+            import warnings
+            warnings.warn(
+                f"CrossEncoderReranker could not load model ({exc}). "
+                "Reranking disabled — docs will be returned in retrieval order.",
+                stacklevel=2,
+            )
 
     def rerank(self, query: str, docs: list[str]) -> list[str]:
-        """Score every (query, doc) pair and return the top-n by descending score."""
+        """Score every (query, doc) pair and return the top-n by descending score.
+        Falls back to returning the first top_n docs if the model is unavailable."""
         if not docs:
             return []
+        if self._model is None:
+            return docs[: self._top_n]
         with span("reranker", {"num_docs": len(docs), "top_n": self._top_n}):
             try:
                 pairs = [(query, doc) for doc in docs]

@@ -25,7 +25,6 @@ build/
 # macOS
 .DS_Store
 
-# Claude Code
-CLAUDE.md
-PROJECT_PLAN.md
+plan.md
+phase.md
 .claude/
