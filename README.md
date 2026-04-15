@@ -1,4 +1,7 @@
 # LLM Observability & Evaluation System
+<img width="1118" height="801" alt="Pasted Graphic 2" src="https://github.com/user-attachments/assets/cde5799c-1d7a-4ddc-8afb-7a547015bdab" />
+<img width="1118" height="801" alt="Pasted Graphic 3" src="https://github.com/user-attachments/assets/ace67be8-d5e6-4869-8afb-a93e57c1550e" />
+
 
 ## 📌 Overview
 
